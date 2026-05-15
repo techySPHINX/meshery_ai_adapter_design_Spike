@@ -1,0 +1,9 @@
+{
+  "name": "",
+  "components": [
+    {"id": "", "name": "nginx", "type": ""}
+  ],
+  "relationships": [
+    {"source": "comp-999", "target": "comp-888", "kind": "depends-on"}
+  ]
+}

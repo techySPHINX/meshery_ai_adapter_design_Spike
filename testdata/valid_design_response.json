@@ -1,0 +1,10 @@
+{
+  "name": "nginx-prometheus-stack",
+  "components": [
+    {"id": "comp-1", "name": "nginx",      "type": "Deployment"},
+    {"id": "comp-2", "name": "prometheus", "type": "Service"}
+  ],
+  "relationships": [
+    {"source": "comp-1", "target": "comp-2", "kind": "observes"}
+  ]
+}

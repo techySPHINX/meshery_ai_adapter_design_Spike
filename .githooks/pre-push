@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+
+echo "Running pre-push checks..."
+
+if ! command -v go >/dev/null 2>&1; then
+  echo "go not found in PATH"
+  exit 1
+fi
+
+go test -v -race ./...
+go build ./cmd/demo/...
+
+echo "Pre-push checks passed."

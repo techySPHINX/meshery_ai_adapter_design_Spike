@@ -9,7 +9,7 @@ import (
 // Keeping this as a typed struct (rather than free text) makes it easy to
 // extend later and prevents callers from accidentally embedding secrets.
 type SchemaContext struct {
-	ComponentRules   []string
+	ComponentRules    []string
 	RelationshipRules []string
 }
 
@@ -18,9 +18,12 @@ type SchemaContext struct {
 var DefaultSchemaContext = SchemaContext{
 	ComponentRules: []string{
 		"component requires: id (string), name (string), type (string)",
+		"component type must match a Meshery model schema entry",
+		"encode protocol detail in component type or name when needed",
 	},
 	RelationshipRules: []string{
 		"relationship requires: source (component id), target (component id), kind (string)",
+		"relationship kind should align with the model schema guidance",
 	},
 }
 
@@ -28,11 +31,50 @@ var DefaultSchemaContext = SchemaContext{
 // It knows about intent and schema — it does not know about credentials,
 // provider URLs, or API keys.
 type Builder struct {
-	schema SchemaContext
+	schema       SchemaContext
+	catalog      ModelCatalog
+	window       ContextWindow
+	systemPrompt string
 }
 
-func NewBuilder(schema SchemaContext) *Builder {
-	return &Builder{schema: schema}
+// Option customizes how the prompt is assembled.
+type Option func(*Builder)
+
+// WithModelCatalog overrides the default Meshery model catalog.
+func WithModelCatalog(catalog ModelCatalog) Option {
+	return func(b *Builder) {
+		b.catalog = catalog
+	}
+}
+
+// WithContextWindow overrides the default context window settings.
+func WithContextWindow(window ContextWindow) Option {
+	return func(b *Builder) {
+		b.window = window
+	}
+}
+
+// WithSystemPrompt overrides the default system prompt.
+func WithSystemPrompt(prompt string) Option {
+	return func(b *Builder) {
+		b.systemPrompt = prompt
+	}
+}
+
+// NewBuilder assembles a prompt builder with defaults, plus optional overrides.
+func NewBuilder(schema SchemaContext, opts ...Option) *Builder {
+	b := &Builder{
+		schema:       schema,
+		catalog:      DefaultModelCatalog(),
+		window:       DefaultContextWindow,
+		systemPrompt: DefaultSystemPrompt,
+	}
+
+	for _, opt := range opts {
+		opt(b)
+	}
+
+	return b
 }
 
 // Build assembles the final prompt string.
@@ -41,11 +83,16 @@ func NewBuilder(schema SchemaContext) *Builder {
 func (b *Builder) Build(intent string) string {
 	var sb strings.Builder
 
-	sb.WriteString("You are a Meshery design assistant.\n\n")
-	sb.WriteString("User intent:\n")
-	fmt.Fprintf(&sb, "%s\n\n", strings.TrimSpace(intent))
+	sb.WriteString("System prompt:\n")
+	sb.WriteString(b.systemPrompt)
 
-	sb.WriteString("Schema rules (your output MUST follow these):\n")
+	sb.WriteString("\n\nUser intent:\n")
+	fmt.Fprintf(&sb, "%s\n", strings.TrimSpace(intent))
+
+	sb.WriteString("\nRelevant Meshery model schemas:\n")
+	sb.WriteString(renderModelContext(b.catalog, b.window, intent))
+
+	sb.WriteString("\nSchema rules (your output MUST follow these):\n")
 	for _, r := range b.schema.ComponentRules {
 		fmt.Fprintf(&sb, "  - %s\n", r)
 	}
@@ -60,6 +107,20 @@ func (b *Builder) Build(intent string) string {
   "relationships": [{"source": "...", "target": "...", "kind": "..."}]
 }`)
 	sb.WriteString("\n\nReturn only the JSON. No explanation, no markdown fences.")
+
+	return sb.String()
+}
+
+func renderModelContext(catalog ModelCatalog, window ContextWindow, intent string) string {
+	models := catalog.Select(intent, window)
+	if len(models) == 0 {
+		return "  - (no model definitions available)\n"
+	}
+
+	var sb strings.Builder
+	for _, m := range models {
+		sb.WriteString(m.Render())
+	}
 
 	return sb.String()
 }

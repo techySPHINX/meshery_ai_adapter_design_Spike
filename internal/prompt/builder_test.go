@@ -31,6 +31,31 @@ func TestPromptBuilderInjectsSchemaContext(t *testing.T) {
 	}
 }
 
+func TestPromptBuilderInjectsMesheryModelDefinitions(t *testing.T) {
+	b := prompt.NewBuilder(prompt.DefaultSchemaContext)
+
+	result := b.Build("Expose a GraphQL API for the service")
+
+	if !strings.Contains(result, "Relevant Meshery model schemas") {
+		t.Error("expected Meshery model schema section in prompt")
+	}
+	if !strings.Contains(result, "GraphQLService") {
+		t.Error("expected GraphQL model schema to be included for GraphQL intent")
+	}
+}
+
+func TestPromptBuilderMentionsProtocolExperience(t *testing.T) {
+	b := prompt.NewBuilder(prompt.DefaultSchemaContext)
+
+	result := b.Build("")
+
+	for _, token := range []string{"REST", "GraphQL", "gRPC"} {
+		if !strings.Contains(result, token) {
+			t.Errorf("expected system prompt to mention %s", token)
+		}
+	}
+}
+
 func TestPromptBuilderDoesNotContainCredentialValues(t *testing.T) {
 	// Simulate a scenario where someone tries to pass a secret through
 	// the intent string. The builder itself doesn't strip it, but this

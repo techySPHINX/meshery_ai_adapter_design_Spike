@@ -6,7 +6,7 @@ package connection
 type Connection struct {
 	ID           string
 	Name         string
-	ProviderType string // "cloud" | "ollama"
+	ProviderType string // "cloud" | "ollama" | "openai" | "vertex" (example values)
 	BaseURL      string
 	Model        string
 	CredentialID string // reference only, not the secret

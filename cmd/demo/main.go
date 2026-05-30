@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/techysphinx/meshery-ai-adapter-design-spike/internal/adapter"
 	"github.com/techysphinx/meshery-ai-adapter-design-spike/internal/connection"
@@ -19,7 +20,23 @@ func main() {
 	store.Register(connection.CredentialRef{ID: "cred-cloud-001", Type: "api_key"})
 
 	cloud := provider.NewMockCloudProvider("cred-cloud-001")
-	ollama := provider.NewMockOllamaProvider()
+
+	useRealOllama := strings.TrimSpace(os.Getenv("OLLAMA_HTTP")) == "1"
+	ollamaModel := strings.TrimSpace(os.Getenv("OLLAMA_MODEL"))
+	if ollamaModel == "" {
+		ollamaModel = "llama3"
+	}
+	ollamaBaseURL := strings.TrimSpace(os.Getenv("OLLAMA_BASE_URL"))
+	if ollamaBaseURL == "" {
+		ollamaBaseURL = provider.DefaultOllamaBaseURL
+	}
+
+	var ollama provider.LLMProvider
+	if useRealOllama {
+		ollama = provider.NewOllamaHTTPProvider(ollamaBaseURL)
+	} else {
+		ollama = provider.NewMockOllamaProvider()
+	}
 
 	resolver := provider.NewResolver(cloud, ollama)
 	pb := prompt.NewBuilder(prompt.DefaultSchemaContext)
@@ -47,7 +64,8 @@ func main() {
 			conn: connection.Connection{
 				ProviderType: "ollama",
 				LocalOnly:    true,
-				Model:        "llama3",
+				BaseURL:      ollamaBaseURL,
+				Model:        ollamaModel,
 			},
 		},
 	}

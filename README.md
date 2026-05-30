@@ -100,3 +100,4 @@ No external dependencies. Standard library only.
 
 - docs/architecture.md
 - docs/tdd-plan.md
+- docs/provider-guide.md
